@@ -44,6 +44,11 @@ export function EventManagement({ events }: EventManagementProps) {
     }
   }
 
+  const handleViewRegistrations = (eventId: string, eventTitle: string) => {
+    console.log(`[v0] Opening registrations dialog for event: ${eventTitle} (${eventId})`)
+    setSelectedEventId(eventId)
+  }
+
   if (events.length === 0) {
     return (
       <div className="text-center py-12">
@@ -70,6 +75,8 @@ export function EventManagement({ events }: EventManagementProps) {
           })
           const isUpcoming = new Date(event.event_date) > new Date()
           const registrationOpen = new Date(event.registration_deadline) > new Date()
+
+          console.log(`[v0] Rendering event "${event.title}" with ${event.current_participants} participants`)
 
           return (
             <Card key={event.id}>
@@ -99,11 +106,20 @@ export function EventManagement({ events }: EventManagementProps) {
                       <MapPin className="h-4 w-4 mr-2" />
                       <span>{event.location}</span>
                     </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Users className="h-4 w-4 mr-2" />
-                      <span>
-                        {event.current_participants}/{event.max_participants} registered
-                      </span>
+                    <div className="flex items-center text-sm">
+                      <Users className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-bold text-primary text-lg">{event.current_participants || 0}</span>
+                      <span className="text-muted-foreground ml-1">/{event.max_participants || "∞"} registered</span>
+                      {event.max_participants && (
+                        <Badge
+                          variant={event.current_participants >= event.max_participants ? "destructive" : "secondary"}
+                          className="ml-2 text-xs"
+                        >
+                          {event.current_participants >= event.max_participants
+                            ? "Full"
+                            : `${event.max_participants - (event.current_participants || 0)} spots left`}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -111,11 +127,11 @@ export function EventManagement({ events }: EventManagementProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedEventId(event.id)}
+                      onClick={() => handleViewRegistrations(event.id, event.title)}
                       className="bg-transparent"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      View Registrations
+                      View Registrations ({event.current_participants || 0})
                     </Button>
                     <Button variant="outline" size="sm" className="bg-transparent">
                       <Edit className="h-4 w-4 mr-2" />

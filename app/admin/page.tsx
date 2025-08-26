@@ -23,8 +23,42 @@ export default async function AdminDashboard() {
     redirect("/")
   }
 
-  // Get admin statistics
-  const { data: events } = await supabase.from("events").select("*").order("created_at", { ascending: false })
+  const { data: eventsSimple } = await supabase.from("events").select("*").order("created_at", { ascending: false })
+
+  // Get registration counts for each event with better error handling
+  const eventsWithCounts = await Promise.all(
+    (eventsSimple || []).map(async (event) => {
+      try {
+        const { count, error } = await supabase
+          .from("event_registrations")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", event.id)
+          .eq("status", "registered")
+
+        if (error) {
+          console.error(`[v0] Error fetching count for event ${event.id}:`, error)
+        }
+
+        console.log(`[v0] Event "${event.title}" has ${count || 0} registrations`)
+
+        return {
+          ...event,
+          current_participants: count || 0,
+        }
+      } catch (error) {
+        console.error(`[v0] Failed to fetch registrations for event ${event.id}:`, error)
+        return {
+          ...event,
+          current_participants: 0,
+        }
+      }
+    }),
+  )
+
+  console.log(
+    "[v0] Events with counts:",
+    eventsWithCounts.map((e) => ({ title: e.title, count: e.current_participants })),
+  )
 
   const { data: totalRegistrations } = await supabase
     .from("event_registrations")
@@ -58,15 +92,15 @@ export default async function AdminDashboard() {
 
           <TabsContent value="overview" className="mt-6">
             <AdminStats
-              totalEvents={events?.length || 0}
+              totalEvents={eventsWithCounts?.length || 0}
               upcomingEvents={upcomingEvents?.length || 0}
               totalRegistrations={totalRegistrations?.length || 0}
-              events={events || []}
+              events={eventsWithCounts || []}
             />
           </TabsContent>
 
           <TabsContent value="events" className="mt-6">
-            <EventManagement events={events || []} />
+            <EventManagement events={eventsWithCounts || []} />
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-6">
