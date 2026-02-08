@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { login } from "@/app/auth/actions"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -20,31 +20,32 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) throw error
+      console.log("[v0] Client: Calling server login action with email:", email)
 
-      // Get user profile to determine redirect
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", (await supabase.auth.getUser()).data.user?.id)
-        .single()
+      const result = await login(email, password)
 
-      if (profile?.role === "admin") {
+      if (!result.success) {
+        console.error("[v0] Client: Login failed:", result.error)
+        setError(result.error || "Login failed. Please try again.")
+        return
+      }
+
+      console.log("[v0] Client: Login successful, redirecting to", result.role === "admin" ? "admin" : "student", "dashboard")
+
+      // Redirect based on role
+      if (result.role === "admin") {
         router.push("/admin")
       } else {
         router.push("/student")
       }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      console.error("[v0] Client login error:", error)
+      const errorMessage = error instanceof Error ? error.message : "An error occurred during login. Please try again."
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
